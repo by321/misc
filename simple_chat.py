@@ -25,7 +25,7 @@ def receive_one_message(sock):
     while len(raw_length) < 4:
         data = sock.recv(4 - len(raw_length))
         if not data:
-            return b""
+            return None
         raw_length += data
     length = struct.unpack('<I', raw_length)[0]
 
@@ -33,16 +33,16 @@ def receive_one_message(sock):
     while len(received) < length:
         data = sock.recv(min(length - len(received), 1024))
         if not data:
-            return b""
+            return None
         received += data
     return received
 
 def receive_messages(sock, remote_name):
     while True:
         data = receive_one_message(sock)
-        if not data:
+        if data is None:
             break
-        print(remote_name + ": " + data.decode())
+        print('\n'+remote_name + ": " + data.decode())
 
 def input_and_send_loop(sock):
     while True:
@@ -55,7 +55,10 @@ def input_and_send_loop(sock):
 
 
 def server_loop(sock, name):
-    print(f"Server started as '{name}'")
+    ip_address = socket.gethostbyname(socket.gethostname())
+    print(f"Starting server, ip={ip_address}, name={name}")
+    print("press Ctrl-Break to exit")
+
     while True:
         client_sock, addr = sock.accept()
         client_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -64,7 +67,7 @@ def server_loop(sock, name):
         send_all(client_sock, struct.pack('<I', len(message)) + message)
 
         data = receive_one_message(client_sock)
-        if not data:
+        if data is None:
             client_sock.close()
             continue
         client_name = data.decode().split(":")[0]
@@ -86,7 +89,7 @@ def client_loop(sock, server_addr, name):
         send_all(sock, struct.pack('<I', len(message)) + message)
 
         data = receive_one_message(sock)
-        if not data:
+        if data is None:
             sock.close()
             return
         server_name = data.decode().split(":")[0]
